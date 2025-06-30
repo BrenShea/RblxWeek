@@ -1,11 +1,14 @@
 -- Script placed under your parent Model
 
+local model  = script.Parent
+local door   = model:WaitForChild("Door")
 local model       = script.Parent
 local door        = model:WaitForChild("Door")
 local fadeTime    = 1        -- duration of fade in seconds
 local stepCount   = 20       -- how many steps in the fade
 local pauseTime   = 2        -- how long door stays invisible
 
+-- collect all the parts inside the Door model
 -- gather all BasePart descendants of Door
 local doorParts = {}
 for _, obj in ipairs(door:GetDescendants()) do
@@ -14,6 +17,7 @@ for _, obj in ipairs(door:GetDescendants()) do
     end
 end
 
+-- find every Button part under the model
 -- find all your Button parts
 local buttons = {}
 for _, obj in ipairs(model:GetDescendants()) do
@@ -22,7 +26,9 @@ for _, obj in ipairs(model:GetDescendants()) do
     end
 end
 
+-- simple debounce so you can't retrigger while animating
 local busy = false
+
 local function toggleDoor()
     if busy then return end
     busy = true
@@ -38,9 +44,11 @@ local function toggleDoor()
 
     -- fully invisible: disable collisions
     for _, part in ipairs(doorParts) do
+        part.Transparency = 1
         part.CanCollide = false
     end
 
+    wait(2)
     wait(pauseTime)
 
     -- fade in (1 → 0)
@@ -54,15 +62,19 @@ local function toggleDoor()
 
     -- fully visible: re-enable collisions
     for _, part in ipairs(doorParts) do
+        part.Transparency = 0
         part.CanCollide = true
     end
 
     busy = false
 end
 
+-- hook up each Button to run toggleDoor when clicked
 -- connect each Button’s ClickDetector to toggleDoor
 for _, button in ipairs(buttons) do
+    -- ensure there's a ClickDetector
     local clickDet = button:FindFirstChildOfClass("ClickDetector")
+        or Instance.new("ClickDetector", button)
                    or Instance.new("ClickDetector", button)
     clickDet.MouseClick:Connect(toggleDoor)
 end
