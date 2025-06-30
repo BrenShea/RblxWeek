@@ -1,0 +1,50 @@
+-- Script placed under your parent Model
+
+local model  = script.Parent
+local door   = model:WaitForChild("Door")
+
+-- collect all the parts inside the Door model
+local doorParts = {}
+for _, obj in ipairs(door:GetDescendants()) do
+    if obj:IsA("BasePart") then
+        table.insert(doorParts, obj)
+    end
+end
+
+-- find every Button part under the model
+local buttons = {}
+for _, obj in ipairs(model:GetDescendants()) do
+    if obj.Name == "Button" and obj:IsA("BasePart") then
+        table.insert(buttons, obj)
+    end
+end
+
+-- simple debounce so you can't retrigger while animating
+local busy = false
+
+local function toggleDoor()
+    if busy then return end
+    busy = true
+
+    -- fade out (0 → 1)
+    for _, part in ipairs(doorParts) do
+        part.Transparency = 1
+    end
+
+    wait(2)
+
+    -- fade in (1 → 0)
+    for _, part in ipairs(doorParts) do
+        part.Transparency = 0
+    end
+
+    busy = false
+end
+
+-- hook up each Button to run toggleDoor when clicked
+for _, button in ipairs(buttons) do
+    -- ensure there's a ClickDetector
+    local clickDet = button:FindFirstChildOfClass("ClickDetector")
+        or Instance.new("ClickDetector", button)
+    clickDet.MouseClick:Connect(toggleDoor)
+end
