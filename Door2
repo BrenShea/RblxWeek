@@ -1,0 +1,68 @@
+-- Script under your parent Model
+local TweenService = game:GetService("TweenService")
+
+local model     = script.Parent
+local door      = model:WaitForChild("Door")
+local buttons   = {}                  -- will hold our Button parts
+
+-- CONFIG
+local fadeTime  = 0.5                  -- seconds for each fade
+local pauseTime = 2                    -- how long door stays invisible
+local tweenInfo = TweenInfo.new(fadeTime, Enum.EasingStyle.Linear)
+
+-- collect all BasePart descendants of Door
+local doorParts = {}
+for _, obj in ipairs(door:GetDescendants()) do
+    if obj:IsA("BasePart") then
+        table.insert(doorParts, obj)
+    end
+end
+
+-- find your Button parts
+for _, obj in ipairs(model:GetDescendants()) do
+    if obj.Name == "Button" and obj:IsA("BasePart") then
+        table.insert(buttons, obj)
+    end
+end
+
+local busy = false
+local function toggleDoor()
+    if busy then return end
+    busy = true
+
+    -- create & play fade-out tweens
+    for _, part in ipairs(doorParts) do
+        local tween = TweenService:Create(part, tweenInfo, {Transparency = 1})
+        tween:Play()
+    end
+
+    -- wait exactly fadeTime seconds, then disable collisions
+    wait(fadeTime)
+    for _, part in ipairs(doorParts) do
+        part.CanCollide = false
+    end
+
+    -- hold invisible
+    wait(pauseTime)
+
+    -- create & play fade-in tweens
+    for _, part in ipairs(doorParts) do
+        local tween = TweenService:Create(part, tweenInfo, {Transparency = 0})
+        tween:Play()
+    end
+
+    -- wait exactly fadeTime seconds, then re-enable collisions
+    wait(fadeTime)
+    for _, part in ipairs(doorParts) do
+        part.CanCollide = true
+    end
+
+    busy = false
+end
+
+-- hook up each Button
+for _, button in ipairs(buttons) do
+    local clickDet = button:FindFirstChildOfClass("ClickDetector")
+                   or Instance.new("ClickDetector", button)
+    clickDet.MouseClick:Connect(toggleDoor)
+end
