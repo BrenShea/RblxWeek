@@ -1,0 +1,75 @@
+-- ElevatorScript.lua
+-- Place this Script inside a Model containing Part1, Part2, and ElevatorPart
+
+local TweenService = game:GetService("TweenService")
+local model = script.Parent
+local elevator = model:WaitForChild("ElevatorPart")
+local part1 = model:WaitForChild("Part1")
+local part2 = model:WaitForChild("Part2")
+
+-- Configurable parameters
+local RiseTime = 2          -- Time (in seconds) to move between parts
+local DelayAfterTouch = 1   -- Delay after player steps on elevator (in seconds)
+local CooldownTime = 3      -- Cooldown between moves (in seconds)
+local EaseStyle = Enum.EasingStyle.Sine  -- Change to Linear, Quad, etc.
+local EaseDirection = Enum.EasingDirection.Out
+
+local tweenInfo = TweenInfo.new(
+    RiseTime,
+    EaseStyle,
+    EaseDirection
+)
+
+-- State variables
+local canMove = true
+local moving = false
+
+-- Preserve original orientation of the elevator
+local orientation = elevator.CFrame - elevator.CFrame.Position
+
+-- Function to move elevator to a target Y position
+local function moveTo(targetY)
+    moving = true
+    -- Build target CFrame preserving X, Z, and orientation
+    local targetPos = Vector3.new(elevator.Position.X, targetY, elevator.Position.Z)
+    local targetCFrame = CFrame.new(targetPos) * orientation
+
+    local tween = TweenService:Create(elevator, tweenInfo, {CFrame = targetCFrame})
+    tween:Play()
+    tween.Completed:Wait()
+
+    moving = false
+    -- Start cooldown timer
+    canMove = false
+    delay(CooldownTime, function()
+        canMove = true
+    end)
+end
+
+-- Touch event handler
+elevator.Touched:Connect(function(hit)
+    local character = hit.Parent
+    local humanoid = character and character:FindFirstChild("Humanoid")
+    if humanoid and not moving and canMove then
+        canMove = false
+        -- Wait before moving
+        delay(DelayAfterTouch, function()
+            local currY = elevator.Position.Y
+            local y1 = part1.Position.Y
+            local y2 = part2.Position.Y
+            -- Determine direction based on current position
+            if math.abs(currY - y1) < 0.1 then
+                moveTo(y2)
+            elseif math.abs(currY - y2) < 0.1 then
+                moveTo(y1)
+            end
+        end)
+    end
+end)
+
+-- On script start, align elevator at Part1 position
+if not moving then
+    elevator.CFrame = CFrame.new(
+        Vector3.new(elevator.Position.X, part1.Position.Y, elevator.Position.Z)
+    ) * orientation
+end
