@@ -1,0 +1,106 @@
+-- ServerScriptService/OrbCollector.lua
+
+-- CONFIGURATION
+local ORB_NAME     = "Orb"                                     -- name of the parts to collect
+local FADE_TIME    = 1                                         -- how long (in seconds) the fade-out should take
+local KICK_MESSAGE = "Congrats! You Collected All Orbs!"      -- message when a player finishes
+-------------------------------------------------------------------
+
+local Players      = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+-- Find all orbs in the workspace
+local function getAllOrbs()
+    local orbs = {}
+    for _, part in pairs(workspace:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name == ORB_NAME then
+            table.insert(orbs, part)
+        end
+    end
+    return orbs
+end
+
+local totalOrbs = #getAllOrbs()
+
+-- Set up each orb: anchored, neon, non-collidable, click detector & touch handler
+local function setupOrb(orb)
+    orb.Anchored     = true
+    orb.Material     = Enum.Material.Neon
+    orb.CanCollide   = false
+
+    -- Prevent double-collection
+    orb:SetAttribute("Collected", false)
+
+    -- Add ClickDetector if not already there
+    local click = orb:FindFirstChildOfClass("ClickDetector")
+    if not click then
+        click = Instance.new("ClickDetector")
+        click.MaxActivationDistance = 10
+        click.Parent = orb
+    end
+
+    -- Common collection handler
+    local function collect(player)
+        if not player or not player:IsA("Player") then return end
+        if orb:GetAttribute("Collected") then return end
+        orb:SetAttribute("Collected", true)
+
+        -- Fade-out tween
+        local tweenInfo = TweenInfo.new(FADE_TIME, Enum.EasingStyle.Linear)
+        local goal = {Transparency = 1}
+        local tween = TweenService:Create(orb, tweenInfo, goal)
+        tween:Play()
+        tween.Completed:Connect(function()
+            orb:Destroy()
+        end)
+
+        -- Update leaderboard
+        local statsFolder = player:FindFirstChild("leaderstats")
+        if statsFolder then
+            local orbStat = statsFolder:FindFirstChild("OrbsCollected")
+            if orbStat then
+                -- parse "X/Y"
+                local current = tonumber(string.match(orbStat.Value, "(%d+)")) or 0
+                local newCount = current + 1
+                orbStat.Value = newCount .. "/" .. totalOrbs
+
+                if newCount >= totalOrbs then
+                    player:Kick(KICK_MESSAGE)
+                end
+            end
+        end
+    end
+
+    -- Connect click
+    click.MouseClick:Connect(collect)
+
+    -- Connect touch
+    orb.Touched:Connect(function(hit)
+        local char = hit.Parent
+        if char and char:FindFirstChild("Humanoid") then
+            local plr = Players:GetPlayerFromCharacter(char)
+            collect(plr)
+        end
+    end)
+end
+
+-- Initialize all existing orbs
+for _, orb in ipairs(getAllOrbs()) do
+    setupOrb(orb)
+end
+
+-- Leaderstats setup per player
+Players.PlayerAdded:Connect(function(player)
+    -- create leaderstats folder
+    local stats = Instance.new("Folder")
+    stats.Name   = "leaderstats"
+    stats.Parent = player
+
+    -- create a StringValue to hold "collected/total"
+    local orbStat = Instance.new("StringValue")
+    orbStat.Name  = "OrbsCollected"
+    orbStat.Value = "0/" .. totalOrbs
+    orbStat.Parent = stats
+end)
+
+-- If you ever spawn new orbs at runtime, you can call setupOrb(newOrb)
